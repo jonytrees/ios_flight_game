@@ -5,11 +5,65 @@
 //  Created by Евгений Янушкевич on 21.01.2021.
 //
 
-import UIKit
-import QuartzCore
+//import UIKit
+//import QuartzCore
 import SceneKit
 
 class GameViewController: UIViewController {
+    
+    var scoreLabel = UILabel()
+    
+    var duration: TimeInterval = 10
+    var score = 0 {
+        didSet {
+            scoreLabel.text = "Score: \(score)"
+        }
+    }
+    
+    var scene: SCNScene {
+        (self.view as! SCNView).scene!
+    }
+    
+    var ship: SCNNode? {
+        scene.rootNode.childNode(withName: "ship", recursively: true)
+    }
+    
+    func addLabel() {
+        scoreLabel.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: 100)
+        scoreLabel.numberOfLines = 2
+        scoreLabel.textAlignment = .center
+        scoreLabel.font = UIFont.systemFont(ofSize: 30)
+        scoreLabel.textColor = .white
+        view.addSubview(scoreLabel)
+        
+        score = 0
+    }
+    
+    func addShip(){
+        
+        let x = Int.random(in: -25...25)
+        let y = Int.random(in: -25...25)
+        let z = -105
+        
+        // set ship position
+        ship?.position = SCNVector3(x, y, z)
+        
+        // remove ship animation
+        ship?.removeAllActions()
+        
+        // set ship orientation
+        ship?.look(at: SCNVector3(2 * x, 2 * y, 2 * z))
+        
+        // animate the 3d object
+        ship?.runAction(SCNAction.move(to: SCNVector3(0, 0, 0), duration: duration)) {
+            DispatchQueue.main.async {
+                self.ship?.removeFromParentNode()
+                self.scoreLabel.text = "Game Over\nScore: \(self.score)"
+            }
+        }
+        
+        duration *= 0.9
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,11 +93,6 @@ class GameViewController: UIViewController {
         ambientLightNode.light!.color = UIColor.darkGray
         scene.rootNode.addChildNode(ambientLightNode)
         
-        // retrieve the ship node
-        let ship = scene.rootNode.childNode(withName: "ship", recursively: true)!
-        
-        // animate the 3d object
-        ship.runAction(SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: 2, z: 0, duration: 1)))
         
         // retrieve the SCNView
         let scnView = self.view as! SCNView
@@ -63,6 +112,9 @@ class GameViewController: UIViewController {
         // add a tap gesture recognizer
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         scnView.addGestureRecognizer(tapGesture)
+        
+        addLabel()
+        addShip()
     }
     
     @objc
@@ -83,16 +135,15 @@ class GameViewController: UIViewController {
             
             // highlight it
             SCNTransaction.begin()
-            SCNTransaction.animationDuration = 0.5
+            SCNTransaction.animationDuration = 0.2
             
             // on completion - unhighlight
             SCNTransaction.completionBlock = {
-                SCNTransaction.begin()
-                SCNTransaction.animationDuration = 0.5
-                
                 material.emission.contents = UIColor.black
-                
-                SCNTransaction.commit()
+                DispatchQueue.main.async {
+                    self.addShip()
+                }
+                self.score += 1
             }
             
             material.emission.contents = UIColor.red
